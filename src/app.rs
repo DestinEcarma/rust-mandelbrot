@@ -116,7 +116,8 @@ impl App {
 
     /// Draw the fractal to the pixels buffer.
     fn draw(&mut self) -> Result<()> {
-        let iterations = self.iterations;
+        let max_iter = self.iterations;
+        println!("iterations: {}", max_iter);
 
         let size = self.window().inner_size();
 
@@ -127,9 +128,9 @@ impl App {
             let y = i / size.width as usize;
 
             let (c_re, c_im) = App::pixel_to_complex(x as f64, y as f64, size);
-            let iterations = App::iterations(c_re, c_im, iterations);
+            let iterations = App::iterations(c_re, c_im, max_iter);
 
-            let color = App::iterations_to_color(iterations, iterations);
+            let color = App::iterations_to_color(iterations, max_iter);
 
             pixel.copy_from_slice(&color);
         }
