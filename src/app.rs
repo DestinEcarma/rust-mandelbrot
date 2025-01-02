@@ -1,5 +1,6 @@
 use crate::defs::Result;
 
+use log::error;
 use pixels::{Pixels, SurfaceTexture};
 use std::mem::{self, MaybeUninit};
 use winit::application::ApplicationHandler;
@@ -29,14 +30,12 @@ impl Drop for App {
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if let Err(e) = self.init(event_loop) {
-            // TODO: Use `log` crate.
-            eprintln!("Failed to initialize app: {e}");
+            error!("Failed to initialize app: {e}");
             event_loop.exit();
         }
 
         if let Err(e) = self.draw() {
-            // TODO: Use `log` crate.
-            eprintln!("Failed to draw: {e}");
+            error!("Failed to draw: {e}");
             event_loop.exit();
         }
     }
@@ -51,15 +50,13 @@ impl ApplicationHandler for App {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => {
                 if let Err(e) = self.resize(size) {
-                    // TODO: Use `log` crate.
-                    eprintln!("Failed to resize pixels: {e}");
+                    error!("Failed to resize pixels: {e}");
                     event_loop.exit();
                 }
             }
             WindowEvent::RedrawRequested => {
                 if let Err(e) = self.draw() {
-                    // TODO: Use `log` crate.
-                    eprintln!("Failed to draw: {e}");
+                    error!("Failed to draw: {e}");
                     event_loop.exit();
                 }
             }

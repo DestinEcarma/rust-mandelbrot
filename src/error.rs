@@ -13,6 +13,9 @@ pub enum Error {
     /// An error that may be generated when setting the Texture width and height
     Texture(pixels::TextureError),
     #[from]
+    /// An error that may be generated when setting the logger
+    SetLogger(log::SetLoggerError),
+    #[from]
     /// A general error that may occur while running the Winit event loop
     EventLoop(winit::error::EventLoopError),
     #[from]
@@ -28,6 +31,7 @@ impl fmt::Display for Error {
             Error::Winit(e) => e.fmt(f),
             Error::EventLoop(e) => e.fmt(f),
             Error::Texture(e) => e.fmt(f),
+            Error::SetLogger(e) => e.fmt(f),
         }
     }
 }
