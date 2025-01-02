@@ -117,7 +117,6 @@ impl App {
     /// Draw the fractal to the pixels buffer.
     fn draw(&mut self) -> Result<()> {
         let max_iter = self.iterations;
-        println!("iterations: {}", max_iter);
 
         let size = self.window().inner_size();
 
