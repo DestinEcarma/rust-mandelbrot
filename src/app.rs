@@ -21,6 +21,7 @@ impl ApplicationHandler for App {
         if let Err(e) = self.init(event_loop) {
             error!("Failed to initialize app: {e}");
             event_loop.exit();
+            return;
         }
 
         if let Err(e) = self.draw() {
