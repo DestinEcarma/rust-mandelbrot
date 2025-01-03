@@ -1,30 +1,19 @@
 use crate::defs::Result;
+use crate::error::Error;
 
 use log::error;
 use pixels::{Pixels, SurfaceTexture};
-use std::mem::{self, MaybeUninit};
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
 use winit::event::WindowEvent;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::Window;
 
+#[derive(Default)]
 pub struct App {
-    window: MaybeUninit<Window>,
-    pixels: MaybeUninit<Pixels>,
-    initialized: bool,
+    window: Option<Window>,
+    pixels: Option<Pixels>,
     iterations: u32,
-}
-
-impl Drop for App {
-    fn drop(&mut self) {
-        if self.initialized {
-            unsafe {
-                mem::drop(self.window.assume_init_read());
-                mem::drop(self.pixels.assume_init_read());
-            }
-        }
-    }
 }
 
 impl ApplicationHandler for App {
@@ -73,23 +62,21 @@ impl App {
     /// Create a new app with the given number of iterations.
     pub fn new(iterations: u32) -> Self {
         Self {
-            window: MaybeUninit::uninit(),
-            pixels: MaybeUninit::uninit(),
-            initialized: false,
             iterations,
+            ..Default::default()
         }
     }
 }
 
 impl App {
     /// Get a reference to the window.
-    fn window(&self) -> &Window {
-        unsafe { self.window.assume_init_ref() }
+    fn window(&self) -> Result<&Window> {
+        self.window.as_ref().ok_or(Error::NoWindow)
     }
 
     /// Get a mutable reference to the pixels.
-    fn pixels_mut(&mut self) -> &mut Pixels {
-        unsafe { self.pixels.assume_init_mut() }
+    fn pixels_mut(&mut self) -> Result<&mut Pixels> {
+        self.pixels.as_mut().ok_or(Error::NoPixels)
     }
 }
 
@@ -104,9 +91,8 @@ impl App {
             Pixels::new(size.width, size.height, surface_texture).expect("Failed to create pixels")
         };
 
-        self.window.write(window);
-        self.pixels.write(pixels);
-        self.initialized = true;
+        self.window = Some(window);
+        self.pixels = Some(pixels);
 
         Ok(())
     }
@@ -115,9 +101,9 @@ impl App {
     fn draw(&mut self) -> Result<()> {
         let max_iter = self.iterations;
 
-        let size = self.window().inner_size();
+        let size = self.window()?.inner_size();
 
-        let pixels = self.pixels_mut();
+        let pixels = self.pixels_mut()?;
 
         for (i, pixel) in pixels.frame_mut().chunks_exact_mut(4).enumerate() {
             let x = i % size.width as usize;
@@ -133,7 +119,7 @@ impl App {
 
         pixels.render()?;
 
-        let window = self.window();
+        let window = self.window()?;
 
         if let Some(false) = window.is_visible() {
             window.set_visible(true);
@@ -144,7 +130,7 @@ impl App {
 
     /// Resize the pixels buffer and surface to the given size.
     fn resize(&mut self, size: PhysicalSize<u32>) -> Result<()> {
-        let pixels = self.pixels_mut();
+        let pixels = self.pixels_mut()?;
 
         pixels.resize_buffer(size.width, size.height)?;
         pixels.resize_surface(size.width, size.height)?;
