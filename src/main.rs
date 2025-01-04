@@ -3,6 +3,7 @@
 mod app;
 mod defs;
 mod error;
+mod shader;
 
 use crate::app::App;
 use crate::defs::Result;

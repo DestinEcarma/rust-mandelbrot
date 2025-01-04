@@ -1,9 +1,8 @@
 use crate::defs::{self, Result};
 use crate::error::Error;
+use crate::shader::Shader;
 
 use log::error;
-use pixels::wgpu::util::DeviceExt as _;
-use pixels::wgpu::{BindGroup, Buffer, RenderPipeline};
 use pixels::{wgpu, Pixels, SurfaceTexture};
 use std::cell::{self, RefCell};
 use winit::application::ApplicationHandler;
@@ -16,10 +15,7 @@ use winit::window::Window;
 pub struct App {
     window: Option<Window>,
     pixels: Option<RefCell<Pixels>>,
-
-    render_pipeline: Option<RenderPipeline>,
-    bind_group: Option<BindGroup>,
-    uniform_buffer: Option<Buffer>,
+    shader: Option<Shader>,
 }
 
 impl ApplicationHandler for App {
@@ -30,7 +26,7 @@ impl ApplicationHandler for App {
             return;
         }
 
-        if let Err(e) = self.draw() {
+        if let Err(e) = self.render() {
             error!("Failed to draw: {e}");
             event_loop.exit();
         }
@@ -51,7 +47,7 @@ impl ApplicationHandler for App {
                 }
             }
             WindowEvent::RedrawRequested => {
-                if let Err(e) = self.draw() {
+                if let Err(e) = self.render() {
                     error!("Failed to draw: {e}");
                     event_loop.exit();
                 }
@@ -94,19 +90,9 @@ impl App {
             .map_or(Err(Error::NoPixels), |value| Ok(value.borrow_mut()))
     }
 
-    /// Get a reference to the render pipeline.
-    fn render_pipeline(&self) -> Result<&RenderPipeline> {
-        self.render_pipeline.as_ref().ok_or(Error::NoRenderPipeline)
-    }
-
-    /// Get a reference to the bind group.
-    fn bind_group(&self) -> Result<&BindGroup> {
-        self.bind_group.as_ref().ok_or(Error::NoBindGroup)
-    }
-
-    /// Get a reference to the uniform buffer.
-    fn uniform_buffer(&self) -> Result<&Buffer> {
-        self.uniform_buffer.as_ref().ok_or(Error::NoUniformBuffer)
+    /// Get a reference to the shader.
+    fn shader(&self) -> Result<&Shader> {
+        self.shader.as_ref().ok_or(Error::NoShader)
     }
 }
 
@@ -122,111 +108,22 @@ impl App {
             Pixels::new(size.width, size.height, surface_texture).expect("Failed to create pixels")
         };
 
-        let pixels_ctx = pixels.context();
-
-        let params = defs::Params {
-            max_iter: 256,
-            width: size.width,
-            height: size.height,
-        };
-
-        let uniform_buffer =
-            pixels_ctx
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("create_buffer_init"),
-                    contents: bytemuck::cast_slice(&[params]),
-                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-                });
-
-        let bind_group_layout =
-            pixels_ctx
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("create_bind_group_layout"),
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    }],
-                });
-
-        let bind_group = pixels_ctx
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("create_bind_group"),
-                layout: &bind_group_layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: uniform_buffer.as_entire_binding(),
-                }],
-            });
-
-        let pipeline_layout =
-            pixels_ctx
-                .device
-                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Pipeline Layout"),
-                    bind_group_layouts: &[&bind_group_layout],
-                    push_constant_ranges: &[],
-                });
-
-        let shader = pixels_ctx
-            .device
-            .create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("create_shader_module"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
-            });
-
-        let render_pipeline =
-            pixels_ctx
-                .device
-                .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("create_render_pipeline"),
-                    layout: Some(&pipeline_layout),
-                    vertex: wgpu::VertexState {
-                        module: &shader,
-                        entry_point: "vs_main",
-                        buffers: &[],
-                    },
-                    fragment: Some(wgpu::FragmentState {
-                        module: &shader,
-                        entry_point: "fs_main",
-                        targets: &[Some(wgpu::ColorTargetState {
-                            format: pixels.surface_texture_format(),
-                            blend: Some(wgpu::BlendState::REPLACE),
-                            write_mask: wgpu::ColorWrites::ALL,
-                        })],
-                    }),
-                    primitive: wgpu::PrimitiveState::default(),
-                    depth_stencil: None,
-                    multisample: wgpu::MultisampleState::default(),
-                    multiview: None,
-                });
+        let shader = Shader::new(size, &pixels);
 
         self.window = Some(window);
         self.pixels = Some(RefCell::new(pixels));
-
-        self.render_pipeline = Some(render_pipeline);
-        self.bind_group = Some(bind_group);
-
-        self.uniform_buffer = Some(uniform_buffer);
+        self.shader = Some(shader);
 
         Ok(())
     }
 
-    /// Draw the fractal to the pixels buffer.
-    fn draw(&mut self) -> Result<()> {
+    /// Render the app, drawing the fractal to the pixels buffer.
+    fn render(&mut self) -> Result<()> {
         let window = self.window()?;
         let pixels = self.pixels()?;
 
-        let render_pipeline = self.render_pipeline()?;
-        let bind_group = self.bind_group()?;
+        let render_pipeline = &self.shader()?.render_pipeline;
+        let bind_group = &self.shader()?.bind_group;
 
         pixels.render_with(move |encoder, view, _ctx| {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -265,17 +162,15 @@ impl App {
     fn resize(&mut self, size: PhysicalSize<u32>) -> Result<()> {
         let mut pixels = self.pixels_mut()?;
 
+        let shader = self.shader()?;
+
         pixels.resize_buffer(size.width, size.height)?;
         pixels.resize_surface(size.width, size.height)?;
 
         pixels.queue().write_buffer(
-            self.uniform_buffer()?,
+            &shader.uniform_buffer,
             0,
-            bytemuck::cast_slice(&[defs::Params {
-                max_iter: 256,
-                width: size.width,
-                height: size.height,
-            }]),
+            bytemuck::cast_slice(&[shader.params.with_size(size)]),
         );
 
         Ok(())

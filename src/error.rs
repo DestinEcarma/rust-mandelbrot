@@ -7,12 +7,8 @@ pub enum Error {
     NoWindow,
     /// An error that may be generated when no pixels are found
     NoPixels,
-    /// An error that may be generated when no render pipeline is found
-    NoRenderPipeline,
-    /// An error that may be generated when no vertex buffer is found
-    NoUniformBuffer,
-    /// An error that may be generated when no diffuse bind group is found
-    NoBindGroup,
+    /// An error that may be generated when no shader is found
+    NoShader,
 
     #[from]
     /// An error that may be generated when requesting Winit state
@@ -39,9 +35,7 @@ impl fmt::Display for Error {
         match self {
             Error::NoWindow => write!(f, "No window field found"),
             Error::NoPixels => write!(f, "No pixels field found"),
-            Error::NoRenderPipeline => write!(f, "No render_pipeline field found"),
-            Error::NoUniformBuffer => write!(f, "No uniform_buffer field found"),
-            Error::NoBindGroup => write!(f, "No bind_group field found"),
+            Error::NoShader => write!(f, "No shader field found"),
             Error::Box(e) => write!(f, "{e:?}"),
             Error::Pixels(e) => e.fmt(f),
             Error::Winit(e) => e.fmt(f),

@@ -1,7 +1,6 @@
 struct Params {
 	max_iter: u32,
-	width: u32,
-	height: u32,
+	size: vec2<u32>,
 };
 
 @vertex
@@ -19,13 +18,16 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4<
 
 @fragment
 fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
-    let normalized_x = position.x / f32(params.width);
-    let normalized_y = position.y / f32(params.height);
+	let width = f32(params.size.x);
+	let height = f32(params.size.y);
 
-	let aspect_ratio = f32(params.width) / f32(params.height);
+	let aspect_ratio = width / height;
 
-    let x = (normalized_x - 0.5) * 3.0 * aspect_ratio;
-    let y = (normalized_y - 0.5) * 3.0;
+    let normalized_x = position.x / width - 0.5;
+    let normalized_y = position.y / height - 0.5;
+
+    let x = normalized_x * 4.0 * aspect_ratio;
+    let y = normalized_y * 4.0;
 
     var z_re = 0.0;
     var z_im = 0.0;
