@@ -12,4 +12,4 @@ This will be the things I want to implement on the future to this application.
 - [ ] Be able to control the zooming and panning on the window.
 - [ ] Be able to control the color scheme.
 - [ ] Be able to save the fractal as an image.
-- [ ] Use the GPU for rendering the fractal. Currently, it's using the CPU.
+- [x] Use the GPU for rendering the fractal. Currently, it's using the CPU.
