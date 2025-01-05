@@ -11,7 +11,7 @@ use crate::defs::Result;
 use winit::event_loop::{ControlFlow, EventLoop};
 
 fn main() -> Result<()> {
-    simple_logger::init()?;
+    simple_logger::init_with_env()?;
 
     let event_loop = EventLoop::new()?;
 
