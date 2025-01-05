@@ -9,6 +9,8 @@ pub enum Error {
     NoPixels,
     /// An error that may be generated when no shader is found
     NoShader,
+    /// An error that may be generated when no camera is found
+    NoCamera,
 
     #[from]
     /// An error that may be generated when requesting Winit state
@@ -36,6 +38,7 @@ impl fmt::Display for Error {
             Error::NoWindow => write!(f, "No window field found"),
             Error::NoPixels => write!(f, "No pixels field found"),
             Error::NoShader => write!(f, "No shader field found"),
+            Error::NoCamera => write!(f, "No camera field found"),
             Error::Box(e) => write!(f, "{e:?}"),
             Error::Pixels(e) => e.fmt(f),
             Error::Winit(e) => e.fmt(f),

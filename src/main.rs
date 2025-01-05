@@ -1,6 +1,7 @@
 // #![allow(dead_code, unused)]
 
 mod app;
+mod camera;
 mod defs;
 mod error;
 mod shader;
