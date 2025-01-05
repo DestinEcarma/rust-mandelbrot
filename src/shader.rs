@@ -16,7 +16,9 @@ pub struct Shader {
 
 impl Shader {
     pub fn new(size: winit::dpi::PhysicalSize<u32>, pixels: &pixels::Pixels) -> Self {
-        let params = defs::Params::new().with_size(size);
+        let mut params = defs::Params::new();
+
+        params.set_size(size);
 
         let uniform_buffer =
             pixels
