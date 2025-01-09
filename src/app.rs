@@ -10,17 +10,15 @@ use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
 use winit::event::{MouseScrollDelta, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
-use winit::window::Window;
 
 #[derive(Default)]
-pub struct App {
-    window: Option<Window>,
+pub struct App<'a> {
     shader: Option<RefCell<Shader>>,
     camera: Option<RefCell<Camera>>,
-    pixels: Option<RefCell<Pixels>>,
+    pixels: Option<RefCell<Pixels<'a>>>,
 }
 
-impl ApplicationHandler for App {
+impl ApplicationHandler for App<'_> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if let Err(e) = self.init(event_loop) {
             error!("Failed to initialize app: {e}");
@@ -68,21 +66,30 @@ impl ApplicationHandler for App {
                 }
             }
             WindowEvent::MouseWheel {
-                delta: MouseScrollDelta::LineDelta(_x, y),
+                delta,
                 device_id: _,
                 phase: _,
-            } => {
-                if let Err(e) = self.zoom(y) {
-                    error!("Failed to zoom: {e}");
-                    event_loop.exit();
+            } => match delta {
+                MouseScrollDelta::LineDelta(_x, y) => {
+                    if let Err(e) = self.zoom(y) {
+                        error!("Failed to zoom: {e}");
+                        event_loop.exit();
+                    }
                 }
-            }
+                MouseScrollDelta::PixelDelta(delta) => {
+                    //log::info!("PixelDelta: {}", if delta.y > 0.0 { 1.0 } else { -1.0 });
+                    if let Err(e) = self.zoom(if delta.y > 0.0 { 1.0 } else { -1.0 }) {
+                        error!("Failed to zoom: {e}");
+                        event_loop.exit();
+                    }
+                }
+            },
             _ => (),
         }
     }
 }
 
-impl App {
+impl App<'_> {
     /// Create a new app with the given number of iterations.
     pub fn new(_iterations: u32) -> Self {
         Self {
@@ -91,21 +98,16 @@ impl App {
     }
 }
 
-impl App {
-    /// Get a reference to the window.
-    fn window(&self) -> Result<&Window> {
-        self.window.as_ref().ok_or(Error::NoWindow)
-    }
-
+impl<'a> App<'a> {
     /// Get a reference to the pixels buffer.
-    fn pixels(&self) -> Result<Ref<'_, Pixels>> {
+    fn pixels(&self) -> Result<Ref<'_, Pixels<'a>>> {
         self.pixels
             .as_ref()
             .map_or(Err(Error::NoPixels), |value| Ok(value.borrow()))
     }
 
     /// Get a mutable reference to the pixels buffer.
-    fn pixels_mut(&self) -> Result<RefMut<'_, Pixels>> {
+    fn pixels_mut(&self) -> Result<RefMut<'_, Pixels<'a>>> {
         self.pixels
             .as_ref()
             .map_or(Err(Error::NoPixels), |value| Ok(value.borrow_mut()))
@@ -133,7 +135,7 @@ impl App {
     }
 }
 
-impl App {
+impl App<'_> {
     /// Initialize the app.
     fn init(&mut self, event_loop: &ActiveEventLoop) -> Result<()> {
         let window = event_loop.create_window(defs::init_window())?;
@@ -141,26 +143,22 @@ impl App {
         let size = window.inner_size();
 
         let pixels = {
-            let surface_texture = SurfaceTexture::new(size.width, size.height, &window);
+            let surface_texture = SurfaceTexture::new(size.width, size.height, window);
             Pixels::new(size.width, size.height, surface_texture).expect("Failed to create pixels")
         };
 
         let shader = Shader::new(size, &pixels);
         let camera = Camera::new(size);
 
-        self.window = Some(window);
         self.shader = Some(RefCell::new(shader));
         self.pixels = Some(RefCell::new(pixels));
         self.camera = Some(RefCell::new(camera));
-
-        self.zoom(0.0)?;
 
         Ok(())
     }
 
     /// Render the app, drawing the fractal to the pixels buffer.
     fn render(&mut self) -> Result<()> {
-        let window = self.window()?;
         let pixels = self.pixels()?;
 
         let render_pipeline = &self.shader()?.render_pipeline;
@@ -179,10 +177,12 @@ impl App {
                             b: 0.0,
                             a: 1.0,
                         }),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: None,
+                occlusion_query_set: None,
+                timestamp_writes: None,
             });
 
             render_pass.set_pipeline(render_pipeline);
@@ -191,10 +191,6 @@ impl App {
 
             Ok(())
         })?;
-
-        if let Some(false) = window.is_visible() {
-            window.set_visible(true);
-        }
 
         Ok(())
     }
@@ -223,7 +219,7 @@ impl App {
     }
 }
 
-impl App {
+impl App<'_> {
     /// Update the position of the mouse.
     pub fn update_mouse_position(&mut self, position: (f32, f32)) -> Result<()> {
         let mut camera = self.camera_mut()?;

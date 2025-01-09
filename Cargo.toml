@@ -7,6 +7,6 @@ edition = "2021"
 bytemuck = { version = "1.21.0", features = ["derive"] }
 derive_more = { version = "1.0.0", features = ["from"] }
 log = "0.4.22"
-pixels = "0.14.0"
+pixels = "0.15.0"
 simple_logger = { version = "5.0.0", default-features = false, features = ["stderr", "colors"] }
 winit = { version = "0.30.7", features = ["rwh_05"] }
