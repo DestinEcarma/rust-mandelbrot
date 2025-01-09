@@ -6,13 +6,16 @@ use crate::shader::Shader;
 use log::error;
 use pixels::{wgpu, Pixels, SurfaceTexture};
 use std::cell::{Ref, RefCell, RefMut};
+use std::sync::Arc;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
 use winit::event::{MouseScrollDelta, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
+use winit::window::Window;
 
 #[derive(Default)]
 pub struct App<'a> {
+    window: Option<Arc<Window>>,
     shader: Option<RefCell<Shader>>,
     camera: Option<RefCell<Camera>>,
     pixels: Option<RefCell<Pixels<'a>>>,
@@ -99,6 +102,13 @@ impl App<'_> {
 }
 
 impl<'a> App<'a> {
+    /// Get a reference to the window.
+    fn window(&self) -> Result<Arc<Window>> {
+        self.window
+            .as_ref()
+            .map_or(Err(Error::NoWindow), |value| Ok(value.clone()))
+    }
+
     /// Get a reference to the pixels buffer.
     fn pixels(&self) -> Result<Ref<'_, Pixels<'a>>> {
         self.pixels
@@ -138,18 +148,19 @@ impl<'a> App<'a> {
 impl App<'_> {
     /// Initialize the app.
     fn init(&mut self, event_loop: &ActiveEventLoop) -> Result<()> {
-        let window = event_loop.create_window(defs::init_window())?;
+        let window = Arc::new(event_loop.create_window(defs::init_window())?);
 
         let size = window.inner_size();
 
         let pixels = {
-            let surface_texture = SurfaceTexture::new(size.width, size.height, window);
+            let surface_texture = SurfaceTexture::new(size.width, size.height, window.clone());
             Pixels::new(size.width, size.height, surface_texture).expect("Failed to create pixels")
         };
 
         let shader = Shader::new(size, &pixels);
         let camera = Camera::new(size);
 
+        self.window = Some(window);
         self.shader = Some(RefCell::new(shader));
         self.pixels = Some(RefCell::new(pixels));
         self.camera = Some(RefCell::new(camera));
@@ -159,6 +170,7 @@ impl App<'_> {
 
     /// Render the app, drawing the fractal to the pixels buffer.
     fn render(&mut self) -> Result<()> {
+        let window = self.window()?;
         let pixels = self.pixels()?;
 
         let render_pipeline = &self.shader()?.render_pipeline;
@@ -191,6 +203,10 @@ impl App<'_> {
 
             Ok(())
         })?;
+
+        if let Some(false) = window.is_visible() {
+            window.set_visible(true);
+        }
 
         Ok(())
     }

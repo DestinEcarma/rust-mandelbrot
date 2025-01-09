@@ -6,7 +6,9 @@ pub const ZOOM_FACTOR: f32 = 1.1;
 pub const ZOOM_SENSITIVITY: f32 = 1.0;
 
 pub fn init_window() -> winit::window::WindowAttributes {
-    winit::window::Window::default_attributes().with_title("Fractals")
+    winit::window::Window::default_attributes()
+        .with_title("Fractals")
+        .with_visible(false)
 }
 
 #[repr(C)]

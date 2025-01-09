@@ -3,6 +3,8 @@ use std::fmt;
 
 #[derive(Debug, From)]
 pub enum Error {
+    /// An error that may be generated when no window is found
+    NoWindow,
     /// An error that may be generated when no pixels are found
     NoPixels,
     /// An error that may be generated when no shader is found
@@ -33,6 +35,7 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
+            Error::NoWindow => write!(f, "No window field found"),
             Error::NoPixels => write!(f, "No pixels field found"),
             Error::NoShader => write!(f, "No shader field found"),
             Error::NoCamera => write!(f, "No camera field found"),
