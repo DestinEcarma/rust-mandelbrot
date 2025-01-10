@@ -26,12 +26,6 @@ impl ApplicationHandler for App<'_> {
         if let Err(e) = self.init(event_loop) {
             error!("Failed to initialize app: {e}");
             event_loop.exit();
-            return;
-        }
-
-        if let Err(e) = self.render() {
-            error!("Failed to draw: {e}");
-            event_loop.exit();
         }
     }
 
@@ -184,12 +178,14 @@ impl App<'_> {
         self.pixels = Some(RefCell::new(pixels));
         self.camera = Some(RefCell::new(camera));
 
+        self.render()?;
+        self.window()?.set_visible(true);
+
         Ok(())
     }
 
     /// Render the app, drawing the fractal to the pixels buffer.
     fn render(&mut self) -> Result<()> {
-        let window = self.window()?;
         let pixels = self.pixels()?;
 
         let render_pipeline = &self.shader()?.render_pipeline;
@@ -222,10 +218,6 @@ impl App<'_> {
 
             Ok(())
         })?;
-
-        if let Some(false) = window.is_visible() {
-            window.set_visible(true);
-        }
 
         Ok(())
     }
@@ -266,24 +258,19 @@ impl App<'_> {
     pub fn zoom(&mut self, delta: f32) -> Result<()> {
         let mut camera = self.camera_mut()?;
         let mut shader = self.shader_mut()?;
-        let pixels = self.pixels()?;
 
         camera.zoom(delta);
 
         shader.params.set_scale(camera.scale);
         shader.params.set_center(camera.world_position);
 
-        pixels.queue().write_buffer(
+        self.pixels()?.queue().write_buffer(
             &shader.uniform_buffer,
             0,
             bytemuck::cast_slice(&[shader.params]),
         );
 
-        drop(pixels);
-        drop(camera);
-        drop(shader);
-
-        self.render()?;
+        self.window()?.request_redraw();
 
         Ok(())
     }
@@ -334,11 +321,7 @@ impl App<'_> {
             bytemuck::cast_slice(&[shader.params]),
         );
 
-        drop(pixels);
-        drop(camera);
-        drop(shader);
-
-        self.render()?;
+        self.window()?.request_redraw();
 
         Ok(())
     }
