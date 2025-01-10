@@ -31,27 +31,32 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let x = normalized_x * params.scale * aspect_ratio + params.center.x;
     let y = normalized_y * params.scale + params.center.y;
 
+	let escape_radius = f32(1u << 16u);
+
     var z_re = 0.0;
     var z_im = 0.0;
+	var z_re2 = 0.0;
+	var z_im2 = 0.0;
 
     var iter = 0u;
 
     while (iter < params.max_iter) {
-		let z_re2 = z_re * z_re;
-		let z_im2 = z_im * z_im;
-
-		if (z_re2 + z_im2 > 4.0) {
-			break;
-		}
-
 		z_im = 2.0 * z_re * z_im + y;
 		z_re = z_re2 - z_im2 + x;
+
+		z_re2 = z_re * z_re;
+		z_im2 = z_im * z_im;
+
+		if (z_re2 + z_im2 > escape_radius) {
+			break;
+		}
 
 		iter += 1u;
     }
 
 	if (iter < params.max_iter) {
-		let t = f32(iter) / f32(params.max_iter);
+		let smooth_iter = f32(iter) + 1.0 - log2(log2(z_re2 + z_im2));
+		let t = smooth_iter / f32(params.max_iter);
 
 		return vec4<f32>(
 			sin(t * 5.0),
