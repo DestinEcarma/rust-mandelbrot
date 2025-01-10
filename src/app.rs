@@ -9,9 +9,9 @@ use std::cell::{Ref, RefCell, RefMut};
 use std::sync::Arc;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
-use winit::event::{MouseScrollDelta, WindowEvent};
+use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
-use winit::window::Window;
+use winit::window::{CursorIcon, Window};
 
 #[derive(Default)]
 pub struct App<'a> {
@@ -55,7 +55,6 @@ impl ApplicationHandler for App<'_> {
                     event_loop.exit();
                 }
             }
-            // TODO: Implement zoom and pan features.
             // TODO: Implement changing the number of iterations.
             // TODO: Implement changing the color scheme.
             // TODO: Implement saving the fractal to an image file.
@@ -63,8 +62,26 @@ impl ApplicationHandler for App<'_> {
                 device_id: _,
                 position,
             } => {
-                if let Err(e) = self.update_mouse_position((position.x as f32, position.y as f32)) {
+                let position = (position.x as f32, position.y as f32);
+
+                if let Err(e) = self.pan((position.0, position.1)) {
+                    error!("Failed to pan: {e}");
+                    event_loop.exit();
+                    return;
+                }
+
+                if let Err(e) = self.update_mouse_position(position) {
                     error!("Failed to update mouse position: {e}");
+                    event_loop.exit();
+                }
+            }
+            WindowEvent::MouseInput {
+                device_id: _,
+                state,
+                button,
+            } => {
+                if let Err(e) = self.prepare_pan(button, state) {
+                    error!("Failed to prepare pan: {e}");
                     event_loop.exit();
                 }
             }
@@ -231,8 +248,6 @@ impl App<'_> {
             bytemuck::cast_slice(&[shader.params]),
         );
 
-        log::info!("Params: {:?}", shader.params);
-
         Ok(())
     }
 }
@@ -256,6 +271,61 @@ impl App<'_> {
         camera.zoom(delta);
 
         shader.params.set_scale(camera.scale);
+        shader.params.set_center(camera.world_position);
+
+        pixels.queue().write_buffer(
+            &shader.uniform_buffer,
+            0,
+            bytemuck::cast_slice(&[shader.params]),
+        );
+
+        drop(pixels);
+        drop(camera);
+        drop(shader);
+
+        self.render()?;
+
+        Ok(())
+    }
+
+    /// Prepare the panning of the camera.
+    pub fn prepare_pan(&self, button: MouseButton, state: ElementState) -> Result<()> {
+        let mut camera = self.camera_mut()?;
+        let window = self.window()?;
+
+        match (button, state) {
+            (MouseButton::Left, ElementState::Pressed) => {
+                window.set_cursor(CursorIcon::Grabbing);
+                camera.mouse_pressed = true;
+            }
+            (MouseButton::Left, ElementState::Released) => {
+                window.set_cursor(CursorIcon::Default);
+                camera.mouse_pressed = false;
+            }
+            _ => (),
+        }
+
+        Ok(())
+    }
+
+    /// Pan the camera given position. The delta will be calculated based on the current
+    pub fn pan(&mut self, position: (f32, f32)) -> Result<()> {
+        let mut camera = self.camera_mut()?;
+
+        if !camera.mouse_pressed {
+            return Ok(());
+        }
+
+        let mut shader = self.shader_mut()?;
+        let pixels = self.pixels()?;
+
+        let delta = (
+            position.0 - camera.mouse_position.0,
+            position.1 - camera.mouse_position.1,
+        );
+
+        camera.pan(delta);
+
         shader.params.set_center(camera.world_position);
 
         pixels.queue().write_buffer(
