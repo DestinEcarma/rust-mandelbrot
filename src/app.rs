@@ -72,21 +72,23 @@ impl ApplicationHandler for App<'_> {
                 delta,
                 device_id: _,
                 phase: _,
-            } => match delta {
-                MouseScrollDelta::LineDelta(_x, y) => {
-                    if let Err(e) = self.zoom(y) {
-                        error!("Failed to zoom: {e}");
-                        event_loop.exit();
+            } => {
+                let y = match delta {
+                    MouseScrollDelta::LineDelta(_x, y) => y,
+                    MouseScrollDelta::PixelDelta(delta) => {
+                        if delta.y > 0.0 {
+                            1.0
+                        } else {
+                            -1.0
+                        }
                     }
+                };
+
+                if let Err(e) = self.zoom(y) {
+                    error!("Failed to zoom: {e}");
+                    event_loop.exit();
                 }
-                MouseScrollDelta::PixelDelta(delta) => {
-                    //log::info!("PixelDelta: {}", if delta.y > 0.0 { 1.0 } else { -1.0 });
-                    if let Err(e) = self.zoom(if delta.y > 0.0 { 1.0 } else { -1.0 }) {
-                        error!("Failed to zoom: {e}");
-                        event_loop.exit();
-                    }
-                }
-            },
+            }
             _ => (),
         }
     }
