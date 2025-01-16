@@ -4,7 +4,7 @@ use crate::error::Error;
 use crate::shader::Shader;
 
 use log::error;
-use pixels::{wgpu, Pixels, SurfaceTexture};
+use pixels::{wgpu, Pixels, PixelsBuilder, SurfaceTexture};
 use std::cell::{Ref, RefCell, RefMut};
 use std::sync::Arc;
 use winit::application::ApplicationHandler;
@@ -56,9 +56,9 @@ impl ApplicationHandler for App<'_> {
                 device_id: _,
                 position,
             } => {
-                let position = (position.x as f32, position.y as f32);
+                let position = (position.x, position.y);
 
-                if let Err(e) = self.pan((position.0, position.1)) {
+                if let Err(e) = self.pan(position) {
                     error!("Failed to pan: {e}");
                     event_loop.exit();
                     return;
@@ -85,12 +85,12 @@ impl ApplicationHandler for App<'_> {
                 phase: _,
             } => {
                 let y = match delta {
-                    MouseScrollDelta::LineDelta(_x, y) => y,
+                    MouseScrollDelta::LineDelta(_x, y) => y as i8,
                     MouseScrollDelta::PixelDelta(delta) => {
                         if delta.y > 0.0 {
-                            1.0
+                            1
                         } else {
-                            -1.0
+                            -1
                         }
                     }
                 };
@@ -167,7 +167,12 @@ impl App<'_> {
 
         let pixels = {
             let surface_texture = SurfaceTexture::new(size.width, size.height, window.clone());
-            Pixels::new(size.width, size.height, surface_texture).expect("Failed to create pixels")
+            PixelsBuilder::new(size.width, size.height, surface_texture)
+                .device_descriptor(wgpu::DeviceDescriptor {
+                    required_features: wgpu::Features::SHADER_F64,
+                    ..Default::default()
+                })
+                .build()?
         };
 
         let shader = Shader::new(size, &pixels);
@@ -229,7 +234,7 @@ impl App<'_> {
         let mut camera = self.camera_mut()?;
 
         shader.params.set_size(size);
-        camera.size = (size.width as f32, size.height as f32);
+        camera.size = (size.width as f64, size.height as f64);
 
         pixels.resize_buffer(size.width, size.height)?;
         pixels.resize_surface(size.width, size.height)?;
@@ -246,7 +251,7 @@ impl App<'_> {
 
 impl App<'_> {
     /// Update the position of the mouse.
-    pub fn update_mouse_position(&mut self, position: (f32, f32)) -> Result<()> {
+    pub fn update_mouse_position(&mut self, position: (f64, f64)) -> Result<()> {
         let mut camera = self.camera_mut()?;
 
         camera.mouse_position = position;
@@ -255,7 +260,7 @@ impl App<'_> {
     }
 
     /// Zoom the camera by the given delta.
-    pub fn zoom(&mut self, delta: f32) -> Result<()> {
+    pub fn zoom(&mut self, delta: i8) -> Result<()> {
         let mut camera = self.camera_mut()?;
         let mut shader = self.shader_mut()?;
 
@@ -296,7 +301,7 @@ impl App<'_> {
     }
 
     /// Pan the camera given position. The delta will be calculated based on the current
-    pub fn pan(&mut self, position: (f32, f32)) -> Result<()> {
+    pub fn pan(&mut self, position: (f64, f64)) -> Result<()> {
         let mut camera = self.camera_mut()?;
 
         if !camera.mouse_pressed {

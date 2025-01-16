@@ -1,9 +1,9 @@
 pub type Result<T> = std::result::Result<T, crate::error::Error>;
 
-pub const MAX_ITER: u32 = 256;
-pub const START_SCALE: f32 = 4.0;
-pub const ZOOM_FACTOR: f32 = 1.1;
-pub const ZOOM_SENSITIVITY: f32 = 1.0;
+pub const MAX_ITER: u32 = 1000;
+pub const START_SCALE: f64 = 4.0;
+pub const ZOOM_FACTOR: f64 = 1.1;
+pub const ZOOM_SENSITIVITY: f64 = 1.0;
 
 pub fn init_window() -> winit::window::WindowAttributes {
     winit::window::Window::default_attributes()
@@ -15,9 +15,10 @@ pub fn init_window() -> winit::window::WindowAttributes {
 #[derive(Copy, Clone, Debug, Default, bytemuck::NoUninit)]
 pub struct Params {
     max_iter: u32,
-    scale: f32,
-    size: [f32; 2],
-    center: [f32; 2],
+    _padding: [u32; 3],
+    scale: f64,
+    size: [u32; 2],
+    center: [f64; 2],
 }
 
 impl Params {
@@ -34,15 +35,15 @@ impl Params {
         self.max_iter = max_iter;
     }
 
-    pub fn set_scale(&mut self, scale: f32) {
+    pub fn set_scale(&mut self, scale: f64) {
         self.scale = scale;
     }
 
     pub fn set_size(&mut self, size: winit::dpi::PhysicalSize<u32>) {
-        self.size = [size.width as f32, size.height as f32];
+        self.size = [size.width, size.height];
     }
 
-    pub fn set_center(&mut self, center: (f32, f32)) {
+    pub fn set_center(&mut self, center: (f64, f64)) {
         self.center = [center.0, center.1];
     }
 }

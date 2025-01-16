@@ -3,13 +3,13 @@ use crate::defs;
 #[derive(Debug)]
 pub struct Camera {
     /// The zoom level of the camera.
-    pub scale: f32,
+    pub scale: f64,
     /// The size of the window.
-    pub size: (f32, f32),
+    pub size: (f64, f64),
     /// The current position of the camera.
-    pub world_position: (f32, f32),
+    pub world_position: (f64, f64),
     /// The current position of the mouse.
-    pub mouse_position: (f32, f32),
+    pub mouse_position: (f64, f64),
     /// Whether the mouse is currently pressed.
     pub mouse_pressed: bool,
 }
@@ -19,7 +19,7 @@ impl Camera {
     pub fn new(size: winit::dpi::PhysicalSize<u32>) -> Self {
         Self {
             scale: defs::START_SCALE,
-            size: (size.width as f32, size.height as f32),
+            size: (size.width as f64, size.height as f64),
             world_position: Default::default(),
             mouse_position: Default::default(),
             mouse_pressed: false,
@@ -29,10 +29,10 @@ impl Camera {
 
 impl Camera {
     /// Move the camera by the given delta.
-    pub fn zoom(&mut self, delta: f32) {
+    pub fn zoom(&mut self, delta: i8) {
         let (world_x, world_y) = self.mouse_world_position();
 
-        self.scale *= defs::ZOOM_FACTOR.powf(-delta * defs::ZOOM_SENSITIVITY);
+        self.scale *= defs::ZOOM_FACTOR.powf(-delta as f64 * defs::ZOOM_SENSITIVITY);
 
         let (new_world_x, new_world_y) = self.mouse_world_position();
 
@@ -41,7 +41,7 @@ impl Camera {
     }
 
     /// Pan the camera to the given delta.
-    pub fn pan(&mut self, delta: (f32, f32)) {
+    pub fn pan(&mut self, delta: (f64, f64)) {
         let normalized_offset_x = delta.0 / self.size.0;
         let normalized_offset_y = delta.1 / self.size.1;
 
@@ -54,7 +54,7 @@ impl Camera {
 
 impl Camera {
     /// Convert a position in normalized coordinates to local coordinates.
-    fn position_to_local(&self, position: (f32, f32)) -> (f32, f32) {
+    fn position_to_local(&self, position: (f64, f64)) -> (f64, f64) {
         let x = position.0 * self.scale * self.size.0 / self.size.1;
         let y = position.1 * self.scale;
 
@@ -62,7 +62,7 @@ impl Camera {
     }
 
     /// Get the position of the mouse in world coordinates.
-    fn mouse_world_position(&self) -> (f32, f32) {
+    fn mouse_world_position(&self) -> (f64, f64) {
         let normalized_x = self.mouse_position.0 / self.size.0 - 0.5;
         let normalized_y = self.mouse_position.1 / self.size.1 - 0.5;
 

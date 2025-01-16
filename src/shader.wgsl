@@ -1,8 +1,11 @@
 struct Params {
 	max_iter: u32,
-	scale: f32,
-	size: vec2<f32>,
-	center: vec2<f32>,
+	_padding1: u32,
+	_padding2: u32,
+	_padding3: u32,
+	scale: f64,
+	size: vec2<u32>,
+	center: vec2<f64>,
 };
 
 @vertex
@@ -20,28 +23,32 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4<
 
 @fragment
 fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
-	let width = params.size.x;
-	let height = params.size.y;
+	let width = f32(params.size.x);
+	let height = f32(params.size.y);
 
-	let aspect_ratio = width / height;
+	let aspect_ratio = f64(width / height);
 
-    let normalized_x = position.x / width - 0.5;
-    let normalized_y = position.y / height - 0.5;
+    let normalized_x = f64(position.x / width - 0.5);
+    let normalized_y = f64(position.y / height - 0.5);
 
     let x = normalized_x * params.scale * aspect_ratio + params.center.x;
     let y = normalized_y * params.scale + params.center.y;
 
-	let escape_radius = f32(1u << 16u);
+	let escape_radius = f64(1u << 16u);
 
-    var z_re = 0.0;
-    var z_im = 0.0;
-	var z_re2 = 0.0;
-	var z_im2 = 0.0;
+    var z_re = f64(0.0);
+    var z_im = f64(0.0);
+	var z_re2 = f64(0.0);
+	var z_im2 = f64(0.0);
+
+	var old_z_re = z_re;
+	var old_z_im = z_im;
+	var period = 0u;
 
     var iter = 0u;
 
     while (iter < params.max_iter) {
-		z_im = 2.0 * z_re * z_im + y;
+		z_im = f64(2.0) * z_re * z_im + y;
 		z_re = z_re2 - z_im2 + x;
 
 		z_re2 = z_re * z_re;
@@ -51,11 +58,24 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 			break;
 		}
 
+		if (z_re == old_z_re && z_im == old_z_im) {
+			iter = params.max_iter;
+			break;
+		}
+
+		period += 1u;
+
+		if (period > 20) {
+			period = 0u;
+			old_z_re = z_re;
+			old_z_im = z_im;
+		}
+
 		iter += 1u;
     }
 
 	if (iter < params.max_iter) {
-		let smooth_iter = f32(iter) + 1.0 - log2(log2(z_re2 + z_im2));
+		let smooth_iter = f32(iter) + 2.0 - log(log(f32(z_re2 + z_im2))) / log(2.0);
 		let t = smooth_iter / f32(params.max_iter);
 
 		return vec4<f32>(
